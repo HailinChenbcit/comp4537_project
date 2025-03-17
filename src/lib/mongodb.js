@@ -28,7 +28,7 @@ async function connectToDatabase() {
     console.error("MongoDB connection failed:", error);
     throw error;
   }
-    const db = client.db(MONGODB_DB);
+  const db = client.db(MONGODB_DB);
   cachedClient = client;
   cachedDb = db;
 

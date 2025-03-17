@@ -1,5 +1,6 @@
 import connectToDatabase from '../../../lib/mongodb';
-import { compare } from '../../../lib/hash';
+import { hash, compare } from '../../../lib/hash';
+import crypto from 'crypto'
 
 export async function POST(req){
     try{
@@ -12,8 +13,8 @@ export async function POST(req){
         if (!body.email || !/^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$/.test(body.email)) {
             errors.email = "Valid email is required";
         }
-        if (!body.password || body.password.length < 6) {
-            errors.password = "Password must be at least 6 characters";
+        if (!body.password || body.password.length < 3) {
+            errors.password = "Password must be at least 3 characters";
         }
 
         // If there are errors, return them along with the partially filled data
@@ -44,8 +45,14 @@ export async function POST(req){
         const correctPassword = compare(body.password, existingUser.password);
         if(correctPassword){
             console.log("Password match");
+
+            //hash session token
+            const hashedSession = hash(crypto.randomBytes(32).toString("hex"));
+            const newSession = await db.collection('sessions').insertOne({email: body.email, token: hashedSession, expiry: new Date(Date.now() + 60 * 60 * 1000)})
             return new Response(JSON.stringify({
                 message: "Login success",
+                email: body.email,
+                sessionToken: hashedSession,
                 formData: body
             }), { status: 200, headers: { "Content-Type": "application/json" } });
         } else {

@@ -6,9 +6,9 @@ import crypto from "crypto";
  * hashcode = hash(req.body.password)
  * storetomongodb(req.body.username, hashcode)
  */
-export function hash(password) {
+export function hash(token) {
     const salt = crypto.randomBytes(16).toString("hex");
-    const hash = crypto.pbkdf2Sync(password, salt, 100000, 64, "sha256").toString("hex");
+    const hash = crypto.pbkdf2Sync(token, salt, 100000, 64, "sha256").toString("hex");
 
     return `100000:${salt}:${hash}`;
 }

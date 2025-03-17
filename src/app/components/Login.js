@@ -18,6 +18,12 @@ export default function Login() {
       });
 
       const data = await response.json();
+      console.log(data);
+      sessionStorage.setItem("email", data.email);
+      
+      sessionStorage.setItem("sessionToken", data.sessionToken);
+      console.log(sessionStorage.getItem("sessionToken", data.sessionToken));
+
       console.log(data)
     } catch (error) {
       console.log(error);
