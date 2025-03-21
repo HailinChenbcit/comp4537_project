@@ -5,7 +5,7 @@ const Game = () => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const [ws, setWs] = useState(null);
-  const [detectedCard, setDetectedCard] = useState("Waiting for detection...");
+  const [detectedCards, setDetectedCards] = useState([]);
   const [isWebSocketStarted, setIsWebSocketStarted] = useState(false);
   const [cameraPermission, setCameraPermission] = useState(null);
   const [cameraError, setCameraError] = useState(null);
@@ -68,6 +68,9 @@ const Game = () => {
 
           if (video.readyState === video.HAVE_ENOUGH_DATA) {
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // Draw detection boxes if available
+            drawDetectionBoxes(ctx);
           }
 
           requestAnimationFrame(drawVideoOnCanvas);
@@ -81,6 +84,36 @@ const Game = () => {
     }
   }
 
+  // Draw bounding boxes for detected cards
+  const drawDetectionBoxes = (ctx) => {
+    if (!detectedCards || !detectedCards.length) return;
+    
+    detectedCards.forEach(card => {
+      if (!card.bbox || card.bbox.length !== 4) return;
+      
+      const [x1, y1, x2, y2] = card.bbox;
+      const width = x2 - x1;
+      const height = y2 - y1;
+      
+      // Draw rectangle around the card
+      ctx.strokeStyle = '#00FF00'; // Bright green
+      ctx.lineWidth = 3;
+      ctx.strokeRect(x1, y1, width, height);
+      
+      // Draw label background
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      ctx.fillRect(x1, y1 - 30, width, 30);
+      
+      // Draw label text
+      const confidence = card.confidence ? Math.round(card.confidence * 100) : '??';
+      const label = `${card.label} (${confidence}%)`;
+      
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = '16px Arial';
+      ctx.fillText(label, x1 + 5, y1 - 10);
+    });
+  };
+
   // Start/Stop WebSocket Connection
   const toggleWebSocket = () => {
     if (isWebSocketStarted) {
@@ -91,6 +124,7 @@ const Game = () => {
         setWs(null);
       }
       setIsWebSocketStarted(false);
+      setDetectedCards([]);
     } else {
       // Start the connection
       try {
@@ -119,16 +153,16 @@ const Game = () => {
           try {
             const data = JSON.parse(event.data);
             console.log("📥 Received data:", data);
+            
             if (data.error) {
               console.error("❌ Server error:", data.error);
               return;
-            }
-            if (data.detections && data.detections.length > 0) {
-              setDetectedCard(data.detections[0].label);
-              console.log("🎴 Detected card:", data.detections[0].label);
-            } else {
-              setDetectedCard("No card detected");
-              console.log("⚠️ No card detected in frame");
+            } else if (data.info) {
+              console.log("ℹ️ Server info:", data.info);
+              return;
+            } else if (data.detections) {
+              console.log(`🎴 Detected ${data.detections.length} cards`);
+              setDetectedCards(data.detections);
             }
           } catch (error) {
             console.error("❌ Error parsing WebSocket message:", error);
@@ -229,10 +263,25 @@ const Game = () => {
       {/* Canvas for Displaying Video & Sending Frames */}
       <canvas ref={canvasRef} width="640" height="480" className="border-4 border-blue-500 rounded-lg shadow-lg" />
 
-      {/* Detected Card Output */}
-      <div className="mt-6 p-4 bg-gray-800 rounded-lg">
-        <h2 className="text-xl">Detected Card:</h2>
-        <p className="text-2xl font-semibold text-yellow-400">{detectedCard}</p>
+      {/* Detected Cards List */}
+      <div className="mt-6 p-4 bg-gray-800 rounded-lg w-full max-w-md">
+        <h2 className="text-xl mb-2">Detected Cards:</h2>
+        {detectedCards.length === 0 ? (
+          <p className="text-yellow-400">No cards detected</p>
+        ) : (
+          <div className="space-y-2">
+            {detectedCards.map((card, idx) => (
+              <div key={idx} className="bg-gray-700 p-2 rounded flex justify-between items-center">
+                <span className="text-xl font-semibold text-yellow-400">{card.label}</span>
+                {card.confidence && (
+                  <span className="bg-blue-600 px-2 py-1 rounded text-sm">
+                    {Math.round(card.confidence * 100)}%
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
